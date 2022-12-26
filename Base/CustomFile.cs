@@ -1,4 +1,6 @@
 ﻿using Porunga.Entities;
+using Atenea.Crypto.Symmetric;
+using System.Text;
 
 namespace Porunga.Base;
 
@@ -14,6 +16,9 @@ public class CustomFile
     /// Credentials.
     /// </summary>
     private NetworkCredential Credentials;
+
+    AdvancesEncryptionStandard Crypto;
+
     #endregion
 
     #region Constructor
@@ -22,7 +27,7 @@ public class CustomFile
     /// </summary>
     public CustomFile()
     {
-        this.Initialize(null, null);
+        this.Initialize(null, null, null, null);
     }
 
     /// <summary>
@@ -31,7 +36,7 @@ public class CustomFile
     /// <param name="pathFile">path File with name and extensions.</param>
     public CustomFile(string pathFile)
     {
-        this.Initialize(pathFile, null);
+        this.Initialize(pathFile, null, null, null);
     }
 
     /// <summary>
@@ -40,7 +45,7 @@ public class CustomFile
     /// <param name="credentials">Credentials to create.</param>
     public CustomFile(NetworkCredential credentials)
     {
-        this.Initialize(null, credentials);
+        this.Initialize(null, credentials, null, null);
     }
 
     /// <summary>
@@ -50,7 +55,12 @@ public class CustomFile
     /// <param name="credentials">Credentials to create.</param>
     public CustomFile(string pathFile, NetworkCredential credentials)
     {
-        this.Initialize(pathFile, credentials);
+        this.Initialize(pathFile, credentials, null, null);
+    }
+
+    public CustomFile(string pathFile, NetworkCredential credentials, string keySecurityPass, string keySaltBytes)
+    {
+        this.Initialize(pathFile, credentials, keySecurityPass, keySaltBytes);
     }
     #endregion
 
@@ -60,8 +70,11 @@ public class CustomFile
     /// </summary>
     /// <param name="pathFile">path File with name and extensions.</param>
     /// <param name="credentials">Credentials to create.</param>
-    private void Initialize(string pathFile, NetworkCredential credentials)
+    private void Initialize(string pathFile, NetworkCredential credentials, string keySecurityPass, string keySaltBytes)
     {
+        this.Crypto = (string.IsNullOrEmpty(keySecurityPass) || string.IsNullOrEmpty(keySaltBytes))
+            ? new AdvancesEncryptionStandard()
+            : new AdvancesEncryptionStandard(keySecurityPass, keySaltBytes);        
         this.PathFile = pathFile ?? @"C:\Setting\CustomFile.config";
         this.Fill(credentials);
         this.Load();
@@ -91,26 +104,31 @@ public class CustomFile
             this.Credentials = credentials;
         }
     }
-    #endregion
 
-
-
-
+    /// <summary>
+    /// Load.
+    /// </summary>
     private void Load()
     {
         try
         {
             if (!File.Exists(this.PathFile))
             {
-                File.WriteAllText(this.PathFile, this.Credentials.GetKeyString());
+                File.WriteAllText(this.PathFile, this.Crypto.Encode(this.Credentials.GetKeyString()));
                 return;
             }
 
-            this.Credentials = this.PathFile.ReadXmlFileString().ToSerialize<NetworkCredential>();
+            this.Credentials = this.Crypto.Decode(File.ReadAllText(this.PathFile)).ReadXmlString().ToSerialize<NetworkCredential>();
         }
         catch (Exception ex)
         {
             throw ex;
         }
     }
+    #endregion
+
+
+
+
+
 }
