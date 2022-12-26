@@ -22,45 +22,15 @@ public class CustomFile
     #endregion
 
     #region Constructor
-    /// <summary>
-    /// Construtor of the class <seealso cref="CustomFile"/>.
-    /// </summary>
-    public CustomFile()
+
+    public CustomFile(string pathFile, string keySecurityPass, string keySaltBytes, string credentials)
     {
-        this.Initialize(null, null, null, null);
+        this.Initialize(pathFile, keySecurityPass, keySaltBytes, credentials);
     }
 
-    /// <summary>
-    /// Construtor of the class <seealso cref="CustomFile"/>.
-    /// </summary>
-    /// <param name="pathFile">path File with name and extensions.</param>
-    public CustomFile(string pathFile)
+    public CustomFile(string pathFile, string keySecurityPass, string keySaltBytes)
     {
-        this.Initialize(pathFile, null, null, null);
-    }
-
-    /// <summary>
-    /// Construtor of the class <seealso cref="CustomFile"/>.
-    /// </summary>
-    /// <param name="credentials">Credentials to create.</param>
-    public CustomFile(NetworkCredential credentials)
-    {
-        this.Initialize(null, credentials, null, null);
-    }
-
-    /// <summary>
-    /// Construtor of the class <seealso cref="CustomFile"/>.
-    /// </summary>
-    /// <param name="pathFile">path File with name and extensions.</param>
-    /// <param name="credentials">Credentials to create.</param>
-    public CustomFile(string pathFile, NetworkCredential credentials)
-    {
-        this.Initialize(pathFile, credentials, null, null);
-    }
-
-    public CustomFile(string pathFile, NetworkCredential credentials, string keySecurityPass, string keySaltBytes)
-    {
-        this.Initialize(pathFile, credentials, keySecurityPass, keySaltBytes);
+        this.Initialize(pathFile, keySecurityPass, keySaltBytes);
     }
     #endregion
 
@@ -70,39 +40,23 @@ public class CustomFile
     /// </summary>
     /// <param name="pathFile">path File with name and extensions.</param>
     /// <param name="credentials">Credentials to create.</param>
-    private void Initialize(string pathFile, NetworkCredential credentials, string keySecurityPass, string keySaltBytes)
+    /// <param name="keySecurityPass">Credentials to create.</param>
+    /// <param name="keySaltBytes">Credentials to create.</param>
+    private void Initialize(string pathFile, string keySecurityPass, string keySaltBytes, string credentials = null)
     {
-        this.Crypto = (string.IsNullOrEmpty(keySecurityPass) || string.IsNullOrEmpty(keySaltBytes))
-            ? new AdvancesEncryptionStandard()
-            : new AdvancesEncryptionStandard(keySecurityPass, keySaltBytes);        
-        this.PathFile = pathFile ?? @"C:\Setting\CustomFile.config";
-        this.Fill(credentials);
-        this.Load();
-    }
+        if (string.IsNullOrEmpty(keySecurityPass) || string.IsNullOrEmpty(keySaltBytes))
+        {
+            throw new ArgumentNullException("Crypto parameters is necesary");
+        }
 
-    /// <summary>
-    /// Fill Custom.
-    /// </summary>
-    /// <param name="credentials">Credentials to create.</param>
-    private void Fill(NetworkCredential credentials)
-    {
-        if (credentials == null)
+        this.Crypto = new AdvancesEncryptionStandard(keySecurityPass, keySaltBytes);
+        this.PathFile = this.Crypto.Decode(pathFile);
+        if (!string.IsNullOrEmpty(credentials))
         {
-            this.Credentials = new NetworkCredential
-            {
-                Database = "DatabaseName",
-                Driver = "System.Data.SqlClient or MySql.Data.MySqlClient",
-                Pass = "Pass",
-                Sectional = "Code Sectional",
-                Server = "Server",
-                User = "UserName",
-                Zone = "Code Zone"
-            };
+            this.Credentials = this.Crypto.Decode(credentials).ToSerialize<NetworkCredential>();
         }
-        else
-        {
-            this.Credentials = credentials;
-        }
+
+        this.Load();
     }
 
     /// <summary>
@@ -114,8 +68,13 @@ public class CustomFile
         {
             if (!File.Exists(this.PathFile))
             {
-                File.WriteAllText(this.PathFile, this.Crypto.Encode(this.Credentials.GetKeyString()));
-                return;
+                if (this.Credentials != null)
+                {
+                    File.WriteAllText(this.PathFile, this.Crypto.Encode(this.Credentials.GetKeyString()));
+                    return;
+                }
+
+                throw new ArgumentNullException("Crypto parameters is necesary");
             }
 
             this.Credentials = this.Crypto.Decode(File.ReadAllText(this.PathFile)).ReadXmlString().ToSerialize<NetworkCredential>();
