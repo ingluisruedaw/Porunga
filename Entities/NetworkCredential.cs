@@ -1,6 +1,6 @@
 ﻿namespace Porunga.Entities;
 
-public class DefaultFile
+public class NetworkCredential
 {
     /// <summary>
     /// Driver.

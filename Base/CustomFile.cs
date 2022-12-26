@@ -1,9 +1,4 @@
-﻿using Porunga.Configuration;
-using Porunga.Entities;
-using Porunga.Resources;
-using System.Xml;
-using System.Xml.Linq;
-using System.Xml.Serialization;
+﻿using Porunga.Entities;
 
 namespace Porunga.Base;
 
@@ -16,130 +11,106 @@ public class CustomFile
     private string PathFile;
 
     /// <summary>
-    /// CustomConfiguration
+    /// Credentials.
     /// </summary>
-    private CustomConfiguration Custom;
-
-    private DefaultDatabase Default;
+    private NetworkCredential Credentials;
     #endregion
 
+    #region Constructor
     /// <summary>
-    /// Constructor of class <seealso cref="CustomFile"/>.
+    /// Construtor of the class <seealso cref="CustomFile"/>.
     /// </summary>
     public CustomFile()
     {
-        this.Initialize();
+        this.Initialize(null, null);
     }
 
     /// <summary>
-    /// Constructor of class <seealso cref="CustomFile"/>.
+    /// Construtor of the class <seealso cref="CustomFile"/>.
     /// </summary>
+    /// <param name="pathFile">path File with name and extensions.</param>
     public CustomFile(string pathFile)
     {
-        this.Initialize(pathFile);
+        this.Initialize(pathFile, null);
     }
 
-    private void Initialize(string pathFile = null)
+    /// <summary>
+    /// Construtor of the class <seealso cref="CustomFile"/>.
+    /// </summary>
+    /// <param name="credentials">Credentials to create.</param>
+    public CustomFile(NetworkCredential credentials)
     {
-        this.Default = new DefaultDatabase();
+        this.Initialize(null, credentials);
+    }
+
+    /// <summary>
+    /// Construtor of the class <seealso cref="CustomFile"/>.
+    /// </summary>
+    /// <param name="pathFile">path File with name and extensions.</param>
+    /// <param name="credentials">Credentials to create.</param>
+    public CustomFile(string pathFile, NetworkCredential credentials)
+    {
+        this.Initialize(pathFile, credentials);
+    }
+    #endregion
+
+    #region Private
+    /// <summary>
+    /// Initialize Components.
+    /// </summary>
+    /// <param name="pathFile">path File with name and extensions.</param>
+    /// <param name="credentials">Credentials to create.</param>
+    private void Initialize(string pathFile, NetworkCredential credentials)
+    {
         this.PathFile = pathFile ?? @"C:\Setting\CustomFile.config";
-        this.FillCustom();
-        this.LoadDatabaseFile();
+        this.Fill(credentials);
+        this.Load();
     }
 
-    //public CustomConfiguration GetCustomConfiguration()
-    //{
-    //    return this.Custom;
-    //}
-
-    private void FillCustom()
+    /// <summary>
+    /// Fill Custom.
+    /// </summary>
+    /// <param name="credentials">Credentials to create.</param>
+    private void Fill(NetworkCredential credentials)
     {
-        this.Custom = new CustomConfiguration
+        if (credentials == null)
         {
-            Default = new DefaultFile
+            this.Credentials = new NetworkCredential
             {
-                Database = this.Default.Database,
-                Driver = this.Default.Driver,
-                Pass = this.Default.Pass,
-                Sectional = this.Default.Sectional,
-                Server = this.Default.Server,
-                User = this.Default.User,
-                Zone = this.Default.Zone
-            }
-        };
+                Database = "DatabaseName",
+                Driver = "System.Data.SqlClient or MySql.Data.MySqlClient",
+                Pass = "Pass",
+                Sectional = "Code Sectional",
+                Server = "Server",
+                User = "UserName",
+                Zone = "Code Zone"
+            };
+        }
+        else
+        {
+            this.Credentials = credentials;
+        }
     }
+    #endregion
 
-    private void LoadDatabaseFile()
+
+
+
+    private void Load()
     {
         try
         {
             if (!File.Exists(this.PathFile))
             {
-                this.CreateDatabaseFile(this.PathFile, this.GetKeyString(this.Custom, typeof(CustomConfiguration)));
+                File.WriteAllText(this.PathFile, this.Credentials.GetKeyString());
                 return;
             }
 
-            var cus = this.ReadXmlFileString(this.PathFile);
-            this.Custom = this.ToSerialize<CustomConfiguration>(cus);
+            this.Credentials = this.PathFile.ReadXmlFileString().ToSerialize<NetworkCredential>();
         }
         catch (Exception ex)
         {
             throw ex;
         }
-    }
-
-    private void CreateDatabaseFile(string path, string contents)
-    {
-        this.WriteFile(path, contents);
-    }
-
-    private void WriteFile(string path, string contents)
-    {
-        File.WriteAllText(path, contents);
-    }
-
-    private string GetKeyString(object? key, Type type)
-    {
-        try
-        {
-            string pubKeyString;
-            {
-                var sw = new StringWriter();
-                var xs = new XmlSerializer(type);
-                xs.Serialize(sw, key);
-                pubKeyString = sw.ToString();
-            }
-
-            XDocument doc = XDocument.Parse(pubKeyString);
-            return doc.ToString();
-        }
-        catch (XmlException ex)
-        {
-            throw ex;
-        }
-    }
-
-    private string ReadXmlFileString(string path)
-    {
-        try
-        {
-            XmlDocument xmlDoc = new XmlDocument();
-            xmlDoc.LoadXml(File.ReadAllText(path));
-            StringWriter sw = new StringWriter();
-            XmlTextWriter xw = new XmlTextWriter(sw);
-            xmlDoc.WriteTo(xw);
-            return sw.ToString();
-        }
-        catch (XmlException ex)
-        {
-            throw ex;
-        }
-    }
-
-    private T ToSerialize<T>(string content)
-    {
-        var sr = new StringReader(content);
-        var xs = new XmlSerializer(typeof(T));
-        return (T)xs.Deserialize(sr);
     }
 }
